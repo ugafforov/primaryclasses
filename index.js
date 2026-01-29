@@ -282,6 +282,15 @@ bot.start(async (ctx) => {
   await showRoleMenu(ctx);
 });
 
+bot.command('menu', async (ctx) => {
+  await showRoleMenu(ctx);
+});
+
+bot.command('cancel', async (ctx) => {
+  await ctx.scene.leave();
+  await showRoleMenu(ctx);
+});
+
 bot.hears('🧑‍🏫 Sinf rahbari', async (ctx) => {
   ctx.session.role = 'class_teacher';
   await showClassMenu(ctx);
@@ -314,6 +323,7 @@ bot.hears('⚠️ Muammoli o‘quvchilar', async (ctx) => {
 });
 
 bot.hears('📊 Sinf natijasi', async (ctx) => {
+  await ctx.reply('⏳ Ma’lumotlar yuklanmoqda, biroz kuting...', classMenuKeyboard);
   const reports = await getCollectionDocs('classReports');
   if (reports.length === 0) {
     await ctx.reply('Hali sinf hisobotlari yo‘q.', classMenuKeyboard);
@@ -344,8 +354,11 @@ bot.hears('🔥 Qo‘llangan metod', async (ctx) => {
 });
 
 bot.hears('📊 Umumiy statistika', async (ctx) => {
-  const subjectReports = await getCollectionDocs('subjectReports');
-  const classReports = await getCollectionDocs('classReports');
+  await ctx.reply('⏳ Ma’lumotlar yuklanmoqda, biroz kuting...', adminMenuKeyboard);
+  const [subjectReports, classReports] = await Promise.all([
+    getCollectionDocs('subjectReports'),
+    getCollectionDocs('classReports'),
+  ]);
 
   const avgGrowth =
     subjectReports.length === 0
@@ -366,8 +379,11 @@ bot.hears('📊 Umumiy statistika', async (ctx) => {
 });
 
 bot.hears('🏆 Reyting', async (ctx) => {
-  const classReports = await getCollectionDocs('classReports');
-  const subjectReports = await getCollectionDocs('subjectReports');
+  await ctx.reply('⏳ Ma’lumotlar yuklanmoqda, biroz kuting...', adminMenuKeyboard);
+  const [classReports, subjectReports] = await Promise.all([
+    getCollectionDocs('classReports'),
+    getCollectionDocs('subjectReports'),
+  ]);
 
   const bestClassTeacher = classReports
     .filter((report) => report.username)
@@ -386,8 +402,11 @@ bot.hears('🏆 Reyting', async (ctx) => {
 });
 
 bot.hears('📥 Hisobotlar', async (ctx) => {
-  const classReports = await getCollectionDocs('classReports');
-  const subjectReports = await getCollectionDocs('subjectReports');
+  await ctx.reply('⏳ Ma’lumotlar yuklanmoqda, biroz kuting...', adminMenuKeyboard);
+  const [classReports, subjectReports] = await Promise.all([
+    getCollectionDocs('classReports'),
+    getCollectionDocs('subjectReports'),
+  ]);
 
   await ctx.reply(
     `📥 Hisobotlar:\nSinf rahbari hisobotlari: ${classReports.length} ta\nFan o‘qituvchi hisobotlari: ${subjectReports.length} ta`,
