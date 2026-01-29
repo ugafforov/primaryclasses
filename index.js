@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import http from 'http';
 import { Telegraf, Markup, session, Scenes } from 'telegraf';
 import { initializeApp } from 'firebase/app';
 import {
@@ -402,3 +403,20 @@ bot.launch();
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
+
+const port = process.env.PORT || 10000;
+
+const server = http.createServer((req, res) => {
+  if (req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('OK');
+    return;
+  }
+
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Bot is running');
+});
+
+server.listen(port, () => {
+  console.log(`HTTP server listening on port ${port}`);
+});
