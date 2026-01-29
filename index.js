@@ -1,7 +1,9 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
 import http from 'http';
 import { Telegraf, Markup, session, Scenes } from 'telegraf';
 import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 import {
   addDoc,
   collection,
@@ -29,6 +31,11 @@ const firebaseConfig = {
 };
 
 const firebaseApp = initializeApp(firebaseConfig);
+// const auth = getAuth(firebaseApp);
+// signInAnonymously(auth)
+//   .then(() => console.log('Firebase: Anonim tarzda tizimga kirildi'))
+//   .catch((error) => console.error('Firebase Auth Error:', error));
+
 const db = getFirestore(firebaseApp);
 const bot = new Telegraf(token);
 
@@ -38,16 +45,13 @@ const roleKeyboard = Markup.keyboard([
 ]).resize();
 
 const classMenuKeyboard = Markup.keyboard([
-  ['📚 Sinf hisobot topshirish'],
-  ['⭐ Haftaning yulduzi'],
-  ['⚠️ Muammoli o‘quvchilar'],
-  ['📊 Sinf natijasi'],
+  ['📚 Sinf hisobot topshirish', '⭐ Haftaning yulduzi'],
+  ['⚠️ Muammoli o‘quvchilar', '📊 Sinf natijasi'],
   ['🔙 Orqaga'],
 ]).resize();
 
 const teacherMenuKeyboard = Markup.keyboard([
-  ['📘 Fan hisobot'],
-  ['🔥 Qo‘llangan metod'],
+  ['📘 Fan hisobot', '🔥 Qo‘llangan metod'],
   ['🔙 Orqaga'],
 ]).resize();
 
@@ -64,14 +68,21 @@ const settingsMenuKeyboard = Markup.keyboard([
 
 const backKeyboard = Markup.keyboard([['🔙 Orqaga']]).resize();
 
-const isAdmin = async (chatId) => {
+const isAdmin = async (chatId, ctx) => {
+  if (ctx?.session?.isAdmin !== undefined) return ctx.session.isAdmin;
+
   const superAdminId = process.env.SUPER_ADMIN_ID;
-  if (chatId && superAdminId && chatId.toString() === superAdminId.toString()) return true;
+  if (chatId && superAdminId && chatId.toString() === superAdminId.toString()) {
+    if (ctx?.session) ctx.session.isAdmin = true;
+    return true;
+  }
 
   try {
     const q = query(collection(db, 'admins'), where('chatId', '==', chatId.toString()));
     const snapshot = await getDocs(q);
-    return !snapshot.empty;
+    const isAuth = !snapshot.empty;
+    if (ctx?.session) ctx.session.isAdmin = isAuth;
+    return isAuth;
   } catch (error) {
     console.error('isAdmin check error:', error);
     return false;
@@ -96,15 +107,25 @@ const ensureText = async (ctx) => {
 };
 
 const saveDocument = async (collectionName, payload) => {
-  await addDoc(collection(db, collectionName), {
-    ...payload,
-    createdAt: serverTimestamp(),
-  });
+  try {
+    await addDoc(collection(db, collectionName), {
+      ...payload,
+      createdAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error(`Error saving to ${collectionName}:`, error);
+    throw error; // Re-throw to handle in UI if needed
+  }
 };
 
 const getCollectionDocs = async (collectionName) => {
-  const snapshot = await getDocs(collection(db, collectionName));
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  try {
+    const snapshot = await getDocs(collection(db, collectionName));
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error(`Error fetching from ${collectionName}:`, error);
+    return []; // Return empty array on error to prevent crash
+  }
 };
 
 const classReportScene = new Scenes.WizardScene(
@@ -386,6 +407,7 @@ const showAdminMenu = async (ctx) => {
 };
 
 bot.start(async (ctx) => {
+  ctx.session = {}; // Reset session
   await showRoleMenu(ctx);
 });
 
@@ -393,9 +415,31 @@ bot.command('menu', async (ctx) => {
   await showRoleMenu(ctx);
 });
 
+bot.command('stop', async (ctx) => {
+  ctx.session = {};
+  await ctx.scene.leave();
+  await ctx.reply('Bot to‘xtatildi. Qayta boshlash uchun /start ni bosing.', Markup.removeKeyboard());
+});
+
 bot.command('cancel', async (ctx) => {
   await ctx.scene.leave();
   await showRoleMenu(ctx);
+});
+
+bot.command('admin', async (ctx) => {
+  const hasAccess = await isAdmin(ctx.chat.id, ctx);
+  if (hasAccess) {
+    ctx.session.role = 'admin';
+    await showAdminMenu(ctx);
+  } else {
+    await ctx.reply('Sizda admin huquqi yo‘q. ❌');
+  }
+});
+
+bot.command('help', async (ctx) => {
+  await ctx.reply(
+    `🤖 Bot buyruqlari:\n\n/start - Botni ishga tushirish\n/menu - Bosh menyu\n/stop - Botni to‘xtatish\n/cancel - Bekor qilish\n/admin - Admin paneli`
+  );
 });
 
 bot.hears('🧑‍🏫 Sinf rahbari', async (ctx) => {
@@ -409,7 +453,7 @@ bot.hears('👨‍🏫 Fan o‘qituvchi', async (ctx) => {
 });
 
 bot.hears('👩‍💼 Rahbariyat', async (ctx) => {
-  const hasAccess = await isAdmin(ctx.chat.id);
+  const hasAccess = await isAdmin(ctx.chat.id, ctx);
   if (!hasAccess) {
     await ctx.reply('Sizda ushbu bo‘limga kirish huquqi yo‘q. ❌');
     return;
@@ -419,15 +463,17 @@ bot.hears('👩‍💼 Rahbariyat', async (ctx) => {
 });
 
 bot.hears('🔙 Orqaga', async (ctx) => {
-  if (ctx.session.screen === 'settings_menu') {
+  const screen = ctx.session?.screen;
+  if (screen === 'settings_menu') {
     await showAdminMenu(ctx);
   } else if (
-    ctx.session.screen === 'class_menu' ||
-    ctx.session.screen === 'teacher_menu' ||
-    ctx.session.screen === 'admin_menu'
+    screen === 'class_menu' ||
+    screen === 'teacher_menu' ||
+    screen === 'admin_menu'
   ) {
     await showRoleMenu(ctx);
   } else {
+    // Default fallback
     await showRoleMenu(ctx);
   }
 });
@@ -560,6 +606,19 @@ bot.hears('👥 Adminlar ro‘yxati', async (ctx) => {
 
   await ctx.reply(list, settingsMenuKeyboard);
 });
+
+bot.catch((err, ctx) => {
+  console.error(`Ooops, encountered an error for ${ctx.updateType}`, err);
+  ctx.reply('Xatolik yuz berdi. Iltimos, /start buyrug‘ini bosing.');
+});
+
+bot.telegram.setMyCommands([
+  { command: 'start', description: 'Botni ishga tushirish' },
+  { command: 'menu', description: 'Bosh menyu' },
+  { command: 'admin', description: 'Admin paneli' },
+  { command: 'stop', description: 'Botni to‘xtatish' },
+  { command: 'help', description: 'Yordam' },
+]);
 
 bot.launch();
 
