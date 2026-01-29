@@ -213,7 +213,11 @@ const methodScene = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.methodName = ctx.message?.text ?? '';
+    const methodName = await ensureText(ctx);
+    if (!methodName) {
+      return;
+    }
+    ctx.wizard.state.data.methodName = methodName;
     await ctx.reply('Qisqa izoh yozing:');
     return ctx.wizard.next();
   },
@@ -294,6 +298,11 @@ bot.hears('👩‍💼 Rahbariyat', async (ctx) => {
 });
 
 bot.hears('🔙 Orqaga', async (ctx) => {
+  if (
+    ctx.session.screen === 'class_menu' ||
+    ctx.session.screen === 'teacher_menu' ||
+    ctx.session.screen === 'admin_menu'
+  ) {
   if (ctx.session.screen === 'class_menu' || ctx.session.screen === 'teacher_menu' || ctx.session.screen === 'admin_menu') {
     await showRoleMenu(ctx);
     return;
