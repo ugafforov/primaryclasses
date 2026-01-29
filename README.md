@@ -22,18 +22,6 @@ export TELEGRAM_BOT_TOKEN="YOUR_TOKEN_HERE"
 npm start
 ```
 
-
-## Render'ga joylash (tavsiya)
-
-1. Render'da **New + → Blueprint** tanlang.
-2. Repo'ni ulang: `ugafforov/primaryclasses`.
-3. Render `render.yaml` ni o‘zi o‘qiydi va **worker** yaratadi.
-4. Environment'ga token kiriting:
-   - `TELEGRAM_BOT_TOKEN`
-5. Deploy tugagach bot avtomatik ishlay boshlaydi.
-
-Eslatma: bu bot **polling** ishlatadi, shuning uchun Render’da **Web Service emas**, **Background Worker** bo‘lishi kerak.
-
 ## Bot imkoniyatlari
 
 - Rol tanlash: sinf rahbari, fan o‘qituvchi, rahbariyat
