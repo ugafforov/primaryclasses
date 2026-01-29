@@ -298,16 +298,6 @@ bot.hears('👩‍💼 Rahbariyat', async (ctx) => {
 });
 
 bot.hears('🔙 Orqaga', async (ctx) => {
-  if (
-    ctx.session.screen === 'class_menu' ||
-    ctx.session.screen === 'teacher_menu' ||
-    ctx.session.screen === 'admin_menu'
-  ) {
-  if (ctx.session.screen === 'class_menu' || ctx.session.screen === 'teacher_menu' || ctx.session.screen === 'admin_menu') {
-    await showRoleMenu(ctx);
-    return;
-  }
-
   await showRoleMenu(ctx);
 });
 
