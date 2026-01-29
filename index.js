@@ -57,6 +57,25 @@ const adminMenuKeyboard = Markup.keyboard([
   ['🔙 Orqaga'],
 ]).resize();
 
+const backKeyboard = Markup.keyboard([['🔙 Orqaga']]).resize();
+
+const ensureText = async (ctx) => {
+  const text = ctx.message?.text;
+  if (text === '🔙 Orqaga') {
+    await ctx.scene.leave();
+    if (ctx.session.role === 'class_teacher') await showClassMenu(ctx);
+    else if (ctx.session.role === 'subject_teacher') await showTeacherMenu(ctx);
+    else if (ctx.session.role === 'admin') await showAdminMenu(ctx);
+    else await showRoleMenu(ctx);
+    return null;
+  }
+  if (!text) {
+    await ctx.reply('Iltimos, matn kiriting:', backKeyboard);
+    return null;
+  }
+  return text;
+};
+
 const saveDocument = async (collectionName, payload) => {
   await addDoc(collection(db, collectionName), {
     ...payload,
@@ -73,31 +92,41 @@ const classReportScene = new Scenes.WizardScene(
   'class-report',
   async (ctx) => {
     ctx.wizard.state.data = {};
-    await ctx.reply('Sinf nomini kiriting:');
+    await ctx.reply('Sinf nomini kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.className = ctx.message?.text ?? '';
-    await ctx.reply('O‘quvchilar sonini kiriting:');
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.className = text;
+    await ctx.reply('O‘quvchilar sonini kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.studentCount = Number(ctx.message?.text ?? 0);
-    await ctx.reply('Faollik (%) ni kiriting:');
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.studentCount = Number(text || 0);
+    await ctx.reply('Faollik (%) ni kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.activity = Number(ctx.message?.text ?? 0);
-    await ctx.reply('Intizom (%) ni kiriting:');
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.activity = Number(text || 0);
+    await ctx.reply('Intizom (%) ni kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.discipline = Number(ctx.message?.text ?? 0);
-    await ctx.reply('Qisqa izoh qoldiring:');
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.discipline = Number(text || 0);
+    await ctx.reply('Qisqa izoh qoldiring:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.note = ctx.message?.text ?? '';
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.note = text;
     await saveDocument('classReports', {
       ...ctx.wizard.state.data,
       role: 'class_teacher',
@@ -114,16 +143,20 @@ const starScene = new Scenes.WizardScene(
   'star-student',
   async (ctx) => {
     ctx.wizard.state.data = {};
-    await ctx.reply('Haftaning yulduzi o‘quvchi ismini kiriting:');
+    await ctx.reply('Haftaning yulduzi o‘quvchi ismini kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.studentName = ctx.message?.text ?? '';
-    await ctx.reply('Sababini yozing:');
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.studentName = text;
+    await ctx.reply('Sababini yozing:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.reason = ctx.message?.text ?? '';
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.reason = text;
     await saveDocument('stars', {
       ...ctx.wizard.state.data,
       role: 'class_teacher',
@@ -140,21 +173,27 @@ const problemScene = new Scenes.WizardScene(
   'problem-student',
   async (ctx) => {
     ctx.wizard.state.data = {};
-    await ctx.reply('Muammoli o‘quvchi ismini kiriting:');
+    await ctx.reply('Muammoli o‘quvchi ismini kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.studentName = ctx.message?.text ?? '';
-    await ctx.reply('Muammo turi (bilim / intizom):');
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.studentName = text;
+    await ctx.reply('Muammo turi (bilim / intizom):', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.issueType = ctx.message?.text ?? '';
-    await ctx.reply('Ko‘rilgan chorani yozing:');
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.issueType = text;
+    await ctx.reply('Ko‘rilgan chorani yozing:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.actionTaken = ctx.message?.text ?? '';
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.actionTaken = text;
     await saveDocument('problemStudents', {
       ...ctx.wizard.state.data,
       role: 'class_teacher',
@@ -171,26 +210,34 @@ const subjectReportScene = new Scenes.WizardScene(
   'subject-report',
   async (ctx) => {
     ctx.wizard.state.data = {};
-    await ctx.reply('Fan nomini kiriting:');
+    await ctx.reply('Fan nomini kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.subjectName = ctx.message?.text ?? '';
-    await ctx.reply('Sinfni kiriting:');
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.subjectName = text;
+    await ctx.reply('Sinfni kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.className = ctx.message?.text ?? '';
-    await ctx.reply('Kirish testi (%) ni kiriting:');
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.className = text;
+    await ctx.reply('Kirish testi (%) ni kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.entryTest = Number(ctx.message?.text ?? 0);
-    await ctx.reply('Chiqish testi (%) ni kiriting:');
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.entryTest = Number(text || 0);
+    await ctx.reply('Chiqish testi (%) ni kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.exitTest = Number(ctx.message?.text ?? 0);
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.exitTest = Number(text || 0);
     const growth = ctx.wizard.state.data.exitTest - ctx.wizard.state.data.entryTest;
     await saveDocument('subjectReports', {
       ...ctx.wizard.state.data,
@@ -209,20 +256,20 @@ const methodScene = new Scenes.WizardScene(
   'method-report',
   async (ctx) => {
     ctx.wizard.state.data = {};
-    await ctx.reply('Qo‘llangan metod nomini kiriting:');
+    await ctx.reply('Qo‘llangan metod nomini kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    const methodName = await ensureText(ctx);
-    if (!methodName) {
-      return;
-    }
-    ctx.wizard.state.data.methodName = methodName;
-    await ctx.reply('Qisqa izoh yozing:');
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.methodName = text;
+    await ctx.reply('Qisqa izoh yozing:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.note = ctx.message?.text ?? '';
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.note = text;
     await saveDocument('methods', {
       ...ctx.wizard.state.data,
       role: 'subject_teacher',
