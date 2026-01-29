@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Telegraf, Markup, session } from 'telegraf';
+import { Telegraf, Markup, session, Scenes } from 'telegraf';
 import { initializeApp } from 'firebase/app';
 import {
   addDoc,
@@ -8,7 +8,6 @@ import {
   getFirestore,
   serverTimestamp,
 } from 'firebase/firestore';
-import { Scenes } from 'telegraf/scenes';
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
