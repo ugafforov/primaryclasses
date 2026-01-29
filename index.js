@@ -19,6 +19,24 @@ if (!token) {
   process.exit(1);
 }
 
+const getText = (ctx) => ctx.message?.text?.trim() ?? '';
+const ensureText = async (ctx) => {
+  const text = getText(ctx);
+  if (!text) {
+    await ctx.reply('Iltimos, faqat matn yuboring.');
+    return null;
+  }
+  return text;
+};
+
+const parsePercent = (value) => {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue) || numberValue < 0 || numberValue > 100) {
+    return null;
+  }
+  return numberValue;
+};
+
 const firebaseConfig = {
   apiKey: 'AIzaSyCJfV6DDuYMnPqV6tQRPy68rHmAajD1roY',
   authDomain: 'primaryclassesbot.firebaseapp.com',
@@ -79,27 +97,62 @@ const classReportScene = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.className = ctx.message?.text ?? '';
+    const className = await ensureText(ctx);
+    if (!className) {
+      return;
+    }
+    ctx.wizard.state.data.className = className;
     await ctx.reply('O‘quvchilar sonini kiriting:');
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.studentCount = Number(ctx.message?.text ?? 0);
+    const text = await ensureText(ctx);
+    if (!text) {
+      return;
+    }
+    const studentCount = Number(text);
+    if (!Number.isFinite(studentCount) || studentCount < 0) {
+      await ctx.reply('Iltimos, o‘quvchilar sonini raqamda kiriting.');
+      return;
+    }
+    ctx.wizard.state.data.studentCount = studentCount;
     await ctx.reply('Faollik (%) ni kiriting:');
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.activity = Number(ctx.message?.text ?? 0);
+    const text = await ensureText(ctx);
+    if (!text) {
+      return;
+    }
+    const activity = parsePercent(text);
+    if (activity === null) {
+      await ctx.reply('Faollik foizini 0 dan 100 gacha kiriting.');
+      return;
+    }
+    ctx.wizard.state.data.activity = activity;
     await ctx.reply('Intizom (%) ni kiriting:');
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.discipline = Number(ctx.message?.text ?? 0);
+    const text = await ensureText(ctx);
+    if (!text) {
+      return;
+    }
+    const discipline = parsePercent(text);
+    if (discipline === null) {
+      await ctx.reply('Intizom foizini 0 dan 100 gacha kiriting.');
+      return;
+    }
+    ctx.wizard.state.data.discipline = discipline;
     await ctx.reply('Qisqa izoh qoldiring:');
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.note = ctx.message?.text ?? '';
+    const note = await ensureText(ctx);
+    if (!note) {
+      return;
+    }
+    ctx.wizard.state.data.note = note;
     await saveDocument('classReports', {
       ...ctx.wizard.state.data,
       role: 'class_teacher',
@@ -120,12 +173,20 @@ const starScene = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.studentName = ctx.message?.text ?? '';
+    const studentName = await ensureText(ctx);
+    if (!studentName) {
+      return;
+    }
+    ctx.wizard.state.data.studentName = studentName;
     await ctx.reply('Sababini yozing:');
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.reason = ctx.message?.text ?? '';
+    const reason = await ensureText(ctx);
+    if (!reason) {
+      return;
+    }
+    ctx.wizard.state.data.reason = reason;
     await saveDocument('stars', {
       ...ctx.wizard.state.data,
       role: 'class_teacher',
@@ -146,17 +207,29 @@ const problemScene = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.studentName = ctx.message?.text ?? '';
+    const studentName = await ensureText(ctx);
+    if (!studentName) {
+      return;
+    }
+    ctx.wizard.state.data.studentName = studentName;
     await ctx.reply('Muammo turi (bilim / intizom):');
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.issueType = ctx.message?.text ?? '';
+    const issueType = await ensureText(ctx);
+    if (!issueType) {
+      return;
+    }
+    ctx.wizard.state.data.issueType = issueType;
     await ctx.reply('Ko‘rilgan chorani yozing:');
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.actionTaken = ctx.message?.text ?? '';
+    const actionTaken = await ensureText(ctx);
+    if (!actionTaken) {
+      return;
+    }
+    ctx.wizard.state.data.actionTaken = actionTaken;
     await saveDocument('problemStudents', {
       ...ctx.wizard.state.data,
       role: 'class_teacher',
@@ -177,22 +250,48 @@ const subjectReportScene = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.subjectName = ctx.message?.text ?? '';
+    const subjectName = await ensureText(ctx);
+    if (!subjectName) {
+      return;
+    }
+    ctx.wizard.state.data.subjectName = subjectName;
     await ctx.reply('Sinfni kiriting:');
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.className = ctx.message?.text ?? '';
+    const className = await ensureText(ctx);
+    if (!className) {
+      return;
+    }
+    ctx.wizard.state.data.className = className;
     await ctx.reply('Kirish testi (%) ni kiriting:');
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.entryTest = Number(ctx.message?.text ?? 0);
+    const text = await ensureText(ctx);
+    if (!text) {
+      return;
+    }
+    const entryTest = parsePercent(text);
+    if (entryTest === null) {
+      await ctx.reply('Kirish testi foizini 0 dan 100 gacha kiriting.');
+      return;
+    }
+    ctx.wizard.state.data.entryTest = entryTest;
     await ctx.reply('Chiqish testi (%) ni kiriting:');
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.exitTest = Number(ctx.message?.text ?? 0);
+    const text = await ensureText(ctx);
+    if (!text) {
+      return;
+    }
+    const exitTest = parsePercent(text);
+    if (exitTest === null) {
+      await ctx.reply('Chiqish testi foizini 0 dan 100 gacha kiriting.');
+      return;
+    }
+    ctx.wizard.state.data.exitTest = exitTest;
     const growth = ctx.wizard.state.data.exitTest - ctx.wizard.state.data.entryTest;
     await saveDocument('subjectReports', {
       ...ctx.wizard.state.data,
@@ -215,12 +314,20 @@ const methodScene = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.methodName = ctx.message?.text ?? '';
+    const methodName = await ensureText(ctx);
+    if (!methodName) {
+      return;
+    }
+    ctx.wizard.state.data.methodName = methodName;
     await ctx.reply('Qisqa izoh yozing:');
     return ctx.wizard.next();
   },
   async (ctx) => {
-    ctx.wizard.state.data.note = ctx.message?.text ?? '';
+    const note = await ensureText(ctx);
+    if (!note) {
+      return;
+    }
+    ctx.wizard.state.data.note = note;
     await saveDocument('methods', {
       ...ctx.wizard.state.data,
       role: 'subject_teacher',
@@ -296,7 +403,11 @@ bot.hears('👩‍💼 Rahbariyat', async (ctx) => {
 });
 
 bot.hears('🔙 Orqaga', async (ctx) => {
-  if (ctx.session.screen === 'class_menu' || ctx.session.screen === 'teacher_menu' || ctx.session.screen === 'admin_menu') {
+  if (
+    ctx.session.screen === 'class_menu' ||
+    ctx.session.screen === 'teacher_menu' ||
+    ctx.session.screen === 'admin_menu'
+  ) {
     await showRoleMenu(ctx);
     return;
   }
