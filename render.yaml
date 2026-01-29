@@ -1,0 +1,12 @@
+services:
+  - type: worker
+    name: primaryclasses-telegram-bot
+    runtime: node
+    repo: https://github.com/ugafforov/primaryclasses
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
