@@ -7,6 +7,8 @@ import {
   collection,
   getDocs,
   getFirestore,
+  query,
+  where,
   serverTimestamp,
 } from 'firebase/firestore';
 
@@ -50,14 +52,31 @@ const teacherMenuKeyboard = Markup.keyboard([
 ]).resize();
 
 const adminMenuKeyboard = Markup.keyboard([
-  ['📊 Umumiy statistika'],
-  ['🏆 Reyting'],
-  ['📥 Hisobotlar'],
-  ['⚙️ Sozlamalar'],
+  ['📊 Umumiy statistika', '🏆 Reyting'],
+  ['📥 Hisobotlar', '⚙️ Sozlamalar'],
+  ['🔙 Orqaga'],
+]).resize();
+
+const settingsMenuKeyboard = Markup.keyboard([
+  ['➕ Admin qo‘shish', '👥 Adminlar ro‘yxati'],
   ['🔙 Orqaga'],
 ]).resize();
 
 const backKeyboard = Markup.keyboard([['🔙 Orqaga']]).resize();
+
+const isAdmin = async (chatId) => {
+  const superAdminId = process.env.SUPER_ADMIN_ID;
+  if (chatId && superAdminId && chatId.toString() === superAdminId.toString()) return true;
+
+  try {
+    const q = query(collection(db, 'admins'), where('chatId', '==', chatId.toString()));
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
+  } catch (error) {
+    console.error('isAdmin check error:', error);
+    return false;
+  }
+};
 
 const ensureText = async (ctx) => {
   const text = ctx.message?.text;
@@ -282,12 +301,53 @@ const methodScene = new Scenes.WizardScene(
   }
 );
 
+const addAdminScene = new Scenes.WizardScene(
+  'add-admin',
+  async (ctx) => {
+    await ctx.reply(
+      'Yangi adminning Telegram ID raqamini kiriting:\n(ID raqamini olish uchun @userinfobot dan foydalanish mumkin)',
+      backKeyboard
+    );
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+
+    const newAdminId = text.trim();
+    if (!/^\d+$/.test(newAdminId)) {
+      await ctx.reply('Xato! ID faqat raqamlardan iborat bo‘lishi kerak. Qaytadan kiriting:', backKeyboard);
+      return;
+    }
+
+    ctx.wizard.state.newAdminId = newAdminId;
+    await ctx.reply('Yangi admin uchun nom (izoh) kiriting:', backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+
+    const adminName = text;
+    await saveDocument('admins', {
+      chatId: ctx.wizard.state.newAdminId,
+      name: adminName,
+      addedBy: ctx.from.id,
+      username: ctx.from.username || 'unknown',
+    });
+
+    await ctx.reply(`✅ ${adminName} muvaffaqiyatli admin qilib tayinlandi!`, adminMenuKeyboard);
+    return ctx.scene.leave();
+  }
+);
+
 const stage = new Scenes.Stage([
   classReportScene,
   starScene,
   problemScene,
   subjectReportScene,
   methodScene,
+  addAdminScene,
 ]);
 
 bot.use(session());
@@ -349,12 +409,27 @@ bot.hears('👨‍🏫 Fan o‘qituvchi', async (ctx) => {
 });
 
 bot.hears('👩‍💼 Rahbariyat', async (ctx) => {
+  const hasAccess = await isAdmin(ctx.chat.id);
+  if (!hasAccess) {
+    await ctx.reply('Sizda ushbu bo‘limga kirish huquqi yo‘q. ❌');
+    return;
+  }
   ctx.session.role = 'admin';
   await showAdminMenu(ctx);
 });
 
 bot.hears('🔙 Orqaga', async (ctx) => {
-  await showRoleMenu(ctx);
+  if (ctx.session.screen === 'settings_menu') {
+    await showAdminMenu(ctx);
+  } else if (
+    ctx.session.screen === 'class_menu' ||
+    ctx.session.screen === 'teacher_menu' ||
+    ctx.session.screen === 'admin_menu'
+  ) {
+    await showRoleMenu(ctx);
+  } else {
+    await showRoleMenu(ctx);
+  }
 });
 
 bot.hears('📚 Sinf hisobot topshirish', async (ctx) => {
@@ -441,7 +516,7 @@ bot.hears('🏆 Reyting', async (ctx) => {
     .sort((a, b) => (Number(b.growth) || 0) - (Number(a.growth) || 0))[0];
 
   await ctx.reply(
-    `🏆 Reyting:\nEng yaxshi sinf rahbari: ${bestClassTeacher?.username ?? 'Ma’lumot yo‘q'}\nEng katta o‘sish ko‘rsatgan fan o‘qituvchi: ${
+    `🏆 Reyting:\nEng yaxshi sinf rahbari: @${bestClassTeacher?.username ?? 'Ma’lumot yo‘q'}\nEng katta o‘sish ko‘rsatgan fan o‘qituvchi: @${
       bestSubjectTeacher?.username ?? 'Ma’lumot yo‘q'
     }`,
     adminMenuKeyboard
@@ -462,7 +537,28 @@ bot.hears('📥 Hisobotlar', async (ctx) => {
 });
 
 bot.hears('⚙️ Sozlamalar', async (ctx) => {
-  await ctx.reply('⚙️ Sozlamalar bo‘limi hozircha tayyor emas.', adminMenuKeyboard);
+  ctx.session.screen = 'settings_menu';
+  await ctx.reply('⚙️ Sozlamalar bo‘limi:', settingsMenuKeyboard);
+});
+
+bot.hears('➕ Admin qo‘shish', async (ctx) => {
+  await ctx.scene.enter('add-admin');
+});
+
+bot.hears('👥 Adminlar ro‘yxati', async (ctx) => {
+  await ctx.reply('⏳ Adminlar ro‘yxati yuklanmoqda...');
+  const admins = await getCollectionDocs('admins');
+  if (admins.length === 0) {
+    await ctx.reply('Hali qo‘shimcha adminlar yo‘q.', settingsMenuKeyboard);
+    return;
+  }
+
+  let list = '👥 Adminlar ro‘yxati:\n\n';
+  admins.forEach((admin, index) => {
+    list += `${index + 1}. ${admin.name} (ID: ${admin.chatId})\n`;
+  });
+
+  await ctx.reply(list, settingsMenuKeyboard);
 });
 
 bot.launch();
