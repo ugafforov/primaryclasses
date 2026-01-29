@@ -1,7 +1,7 @@
 {
-  "name": "telegram-bot",
+  "name": "primaryclasses-bot",
   "version": "0.1.0",
-  "description": "Minimal Telegram bot using Telegraf",
+  "description": "Telegram bot for primary classes reports (Telegraf)",
   "type": "module",
   "main": "index.js",
   "scripts": {
