@@ -27,9 +27,10 @@ npm start
 ## Bot imkoniyatlari
 
 - Rol tanlash: sinf rahbari, fan o'qituvchi, rahbariyat
-- Sinf rahbari uchun: sinf hisobot, haftaning yulduzi, muammoli o'quvchilar, sinf natijasi
-- Fan o'qituvchi uchun: fan hisobot, qo'llangan metod
+- Sinf rahbari uchun: sinf hisobot, haftaning yulduzi, muammoli o‘quvchilar, sinf natijasi
+- Fan o‘qituvchi uchun: fan hisobot, qo‘llangan metod
 - Rahbariyat uchun: umumiy statistika, reyting, hisobotlar
+- Kunlik hisobotlar: sinf/fan o‘qituvchilar uchun (21:00 gacha topshiriladi)
 
 ## Notes
 

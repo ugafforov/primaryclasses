@@ -10,8 +10,12 @@ import { getAuth, signInAnonymously } from 'firebase/auth';
 import {
   addDoc,
   collection,
+  deleteDoc,
+  doc,
   getDocs,
   getFirestore,
+  limit,
+  orderBy,
   query,
   where,
   serverTimestamp,
@@ -43,33 +47,33 @@ const db = getFirestore(firebaseApp);
 const bot = new Telegraf(token);
 
 const roleKeyboard = Markup.keyboard([
-  ['🧑‍🏫 Sinf rahbari', '👨‍🏫 Fan o'qituvchi'],
-  ['👩‍💼 Rahbariyat'],
+  ['\u{1F9D1}\u{200D}\u{1F3EB} Sinf rahbari', '\u{1F468}\u{200D}\u{1F3EB} Fan o\'qituvchi'],
+  ['\u{1F9D1}\u{200D}\u{1F4BC} Rahbariyat'],
 ]).resize();
 
 const classMenuKeyboard = Markup.keyboard([
-  ['📚 Sinf hisobot topshirish', '⭐ Haftaning yulduzi'],
-  ['⚠️ Muammoli o'quvchilar', '📊 Sinf natijasi'],
-  ['🔙 Orqaga'],
+  ['\u{1F4DD} Kunlik hisobot'],
+  ['\u{26A0}\u{FE0F} Muammoli o\'quvchi'],
+  ['\u{2B05}\u{FE0F} Orqaga'],
 ]).resize();
 
 const teacherMenuKeyboard = Markup.keyboard([
-  ['📘 Fan hisobot', '🔥 Qo'llangan metod'],
-  ['🔙 Orqaga'],
+  ['\u{1F4DD} Kunlik fan hisobot'],
+  ['\u{2B05}\u{FE0F} Orqaga'],
 ]).resize();
 
 const adminMenuKeyboard = Markup.keyboard([
-  ['📊 Umumiy statistika', '🏆 Reyting'],
-  ['📥 Hisobotlar', '⚙️ Sozlamalar'],
-  ['🔙 Orqaga'],
+  ['\u{1F4CB} Kunlik hisobotlar'],
+  ['\u{2699}\u{FE0F} Sozlamalar'],
+  ['\u{2B05}\u{FE0F} Orqaga'],
 ]).resize();
 
 const settingsMenuKeyboard = Markup.keyboard([
-  ['➕ Admin qo'shish', '👥 Adminlar ro'yxati'],
-  ['🔙 Orqaga'],
+  ['\u{2795} Admin qo\'shish', '\u{1F465} Adminlar ro\'yxati'],
+  ['\u{2B05}\u{FE0F} Orqaga'],
 ]).resize();
 
-const backKeyboard = Markup.keyboard([['🔙 Orqaga']]).resize();
+const backKeyboard = Markup.keyboard([['\u{2B05}\u{FE0F} Orqaga']]).resize();
 
 const isAdmin = async (chatId, ctx) => {
   if (ctx?.session?.isAdmin !== undefined) return ctx.session.isAdmin;
@@ -94,7 +98,7 @@ const isAdmin = async (chatId, ctx) => {
 
 const ensureText = async (ctx) => {
   const text = ctx.message?.text;
-  if (text === '🔙 Orqaga') {
+  if (text === '\u{2B05}\u{FE0F} Orqaga') {
     await ctx.scene.leave();
     if (ctx.session.role === 'class_teacher') await showClassMenu(ctx);
     else if (ctx.session.role === 'subject_teacher') await showTeacherMenu(ctx);
@@ -131,92 +135,41 @@ const getCollectionDocs = async (collectionName) => {
   }
 };
 
-const classReportScene = new Scenes.WizardScene(
-  'class-report',
-  async (ctx) => {
-    ctx.wizard.state.data = {};
-    await ctx.reply('Sinf nomini kiriting:', backKeyboard);
-    return ctx.wizard.next();
-  },
-  async (ctx) => {
-    const text = await ensureText(ctx);
-    if (!text) return;
-    ctx.wizard.state.data.className = text;
-    await ctx.reply('O'quvchilar sonini kiriting:', backKeyboard);
-    return ctx.wizard.next();
-  },
-  async (ctx) => {
-    const text = await ensureText(ctx);
-    if (!text) return;
-    ctx.wizard.state.data.studentCount = Number(text || 0);
-    await ctx.reply('Faollik (%) ni kiriting:', backKeyboard);
-    return ctx.wizard.next();
-  },
-  async (ctx) => {
-    const text = await ensureText(ctx);
-    if (!text) return;
-    ctx.wizard.state.data.activity = Number(text || 0);
-    await ctx.reply('Intizom (%) ni kiriting:', backKeyboard);
-    return ctx.wizard.next();
-  },
-  async (ctx) => {
-    const text = await ensureText(ctx);
-    if (!text) return;
-    ctx.wizard.state.data.discipline = Number(text || 0);
-    await ctx.reply('Qisqa izoh qoldiring:', backKeyboard);
-    return ctx.wizard.next();
-  },
-  async (ctx) => {
-    const text = await ensureText(ctx);
-    if (!text) return;
-    ctx.wizard.state.data.note = text;
-    await saveDocument('classReports', {
-      ...ctx.wizard.state.data,
-      role: 'class_teacher',
-      chatId: ctx.chat?.id ?? null,
-      fromId: ctx.from?.id ?? null,
-      username: ctx.from?.username ?? null,
-    });
-    await ctx.reply('✅ Hisobot qabul qilindi', classMenuKeyboard);
-    return ctx.scene.leave();
+const getLatestDocs = async (collectionName, count = 10) => {
+  try {
+    const q = query(
+      collection(db, collectionName),
+      orderBy('createdAt', 'desc'),
+      limit(count)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error(`Error fetching latest from ${collectionName}:`, error);
+    return [];
   }
-);
+};
 
-const starScene = new Scenes.WizardScene(
-  'star-student',
-  async (ctx) => {
-    ctx.wizard.state.data = {};
-    await ctx.reply('Haftaning yulduzi o'quvchi ismini kiriting:', backKeyboard);
-    return ctx.wizard.next();
-  },
-  async (ctx) => {
-    const text = await ensureText(ctx);
-    if (!text) return;
-    ctx.wizard.state.data.studentName = text;
-    await ctx.reply('Sababini yozing:', backKeyboard);
-    return ctx.wizard.next();
-  },
-  async (ctx) => {
-    const text = await ensureText(ctx);
-    if (!text) return;
-    ctx.wizard.state.data.reason = text;
-    await saveDocument('stars', {
-      ...ctx.wizard.state.data,
-      role: 'class_teacher',
-      chatId: ctx.chat?.id ?? null,
-      fromId: ctx.from?.id ?? null,
-      username: ctx.from?.username ?? null,
-    });
-    await ctx.reply('🌟 Haftaning yulduzi qabul qilindi', classMenuKeyboard);
-    return ctx.scene.leave();
-  }
-);
+const pad2 = (value) => String(value).padStart(2, '0');
+
+const getLocalDateKey = (date = new Date()) =>
+  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+
+const getLocalTime = (date = new Date()) =>
+  `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+
+const isLateSubmission = (date = new Date()) => date.getHours() >= 21;
+
+const parseYes = (text) => {
+  const value = text.trim().toLowerCase();
+  return value === 'ha' || value === 'xa' || value === 'yes' || value === '1';
+};
 
 const problemScene = new Scenes.WizardScene(
   'problem-student',
   async (ctx) => {
     ctx.wizard.state.data = {};
-    await ctx.reply('Muammoli o'quvchi ismini kiriting:', backKeyboard);
+    await ctx.reply('Muammoli o\'quvchi ismini kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
@@ -230,7 +183,7 @@ const problemScene = new Scenes.WizardScene(
     const text = await ensureText(ctx);
     if (!text) return;
     ctx.wizard.state.data.issueType = text;
-    await ctx.reply('Ko'rilgan chorani yozing:', backKeyboard);
+    await ctx.reply('Ko\'rilgan chorani yozing:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
@@ -244,16 +197,161 @@ const problemScene = new Scenes.WizardScene(
       fromId: ctx.from?.id ?? null,
       username: ctx.from?.username ?? null,
     });
-    await ctx.reply('📌 Ma'lumot rahbariyatga yuborildi', classMenuKeyboard);
+    await ctx.reply('Ma\'lumot rahbariyatga yuborildi', classMenuKeyboard);
     return ctx.scene.leave();
   }
 );
 
-const subjectReportScene = new Scenes.WizardScene(
-  'subject-report',
+const classDailyReportScene = new Scenes.WizardScene(
+  'class-daily-report',
   async (ctx) => {
-    ctx.wizard.state.data = {};
-    await ctx.reply('Fan nomini kiriting:', backKeyboard);
+    const now = new Date();
+    ctx.wizard.state.data = {
+      dateKey: getLocalDateKey(now),
+      submittedAt: getLocalTime(now),
+      isLate: isLateSubmission(now),
+      role: 'class_teacher',
+      reportType: 'daily_class',
+    };
+    await ctx.reply(
+      `Kunlik sinf hisobot. Muddat: 21:00 gacha.\nSana: ${ctx.wizard.state.data.dateKey}\nSinf nomini kiriting:`,
+      backKeyboard
+    );
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.className = text;
+    await ctx.reply('Dars mavzusini kiriting:', backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.lessonTopic = text;
+    await ctx.reply('Dars maqsadi (qisqa):', backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.lessonGoal = text;
+    await ctx.reply("Qo'llangan metodikani kiriting:", backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.method = text;
+    await ctx.reply('Bugun nechta o\'quvchi qatnashdi?', backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.attendance = Number(text || 0);
+    await ctx.reply('O\'quvchilar faolligi (1-5):', backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.activityScore = Number(text || 0);
+    await ctx.reply('O\'zlashtirish darajasi (1-5):', backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.performanceScore = Number(text || 0);
+    await ctx.reply('Uyga vazifa berildimi? (ha/yo\'q)', backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    const hasHomework = parseYes(text);
+    ctx.wizard.state.data.hasHomework = hasHomework;
+    if (hasHomework) {
+      await ctx.reply('Uyga vazifa (qisqa):', backKeyboard);
+      return ctx.wizard.next();
+    }
+    await ctx.reply("Muammo bormi? (ha/yo'q)", backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.homework = text;
+    await ctx.reply("Muammo bormi? (ha/yo'q)", backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    const hasIssue = parseYes(text);
+    ctx.wizard.state.data.hasIssue = hasIssue;
+    if (hasIssue) {
+      await ctx.reply('Muammo turi va qisqa tavsifini yozing:', backKeyboard);
+      return ctx.wizard.next();
+    }
+
+    await saveDocument('dailyReports', {
+      ...ctx.wizard.state.data,
+      chatId: ctx.chat?.id ?? null,
+      fromId: ctx.from?.id ?? null,
+      username: ctx.from?.username ?? null,
+    });
+
+    const lateNote = ctx.wizard.state.data.isLate
+      ? '\nEslatma: Hisobot 21:00 dan keyin yuborildi.'
+      : '';
+    await ctx.reply(`Hisobot qabul qilindi.${lateNote}`, classMenuKeyboard);
+    return ctx.scene.leave();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.issueDetail = text;
+    await ctx.reply('Ko\'rilgan chora va reja:', backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.actionPlan = text;
+
+    await saveDocument('dailyReports', {
+      ...ctx.wizard.state.data,
+      chatId: ctx.chat?.id ?? null,
+      fromId: ctx.from?.id ?? null,
+      username: ctx.from?.username ?? null,
+    });
+
+    const lateNote = ctx.wizard.state.data.isLate
+      ? '\nEslatma: Hisobot 21:00 dan keyin yuborildi.'
+      : '';
+    await ctx.reply(`Hisobot qabul qilindi.${lateNote}`, classMenuKeyboard);
+    return ctx.scene.leave();
+  }
+);
+
+const subjectDailyReportScene = new Scenes.WizardScene(
+  'subject-daily-report',
+  async (ctx) => {
+    const now = new Date();
+    ctx.wizard.state.data = {
+      dateKey: getLocalDateKey(now),
+      submittedAt: getLocalTime(now),
+      isLate: isLateSubmission(now),
+      role: 'subject_teacher',
+      reportType: 'daily_subject',
+    };
+    await ctx.reply(
+      `Kunlik fan hisobot. Muddat: 21:00 gacha.\nSana: ${ctx.wizard.state.data.dateKey}\nFan nomini kiriting:`,
+      backKeyboard
+    );
     return ctx.wizard.next();
   },
   async (ctx) => {
@@ -267,60 +365,116 @@ const subjectReportScene = new Scenes.WizardScene(
     const text = await ensureText(ctx);
     if (!text) return;
     ctx.wizard.state.data.className = text;
-    await ctx.reply('Kirish testi (%) ni kiriting:', backKeyboard);
+    await ctx.reply('Dars mavzusini kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
     const text = await ensureText(ctx);
     if (!text) return;
-    ctx.wizard.state.data.entryTest = Number(text || 0);
-    await ctx.reply('Chiqish testi (%) ni kiriting:', backKeyboard);
+    ctx.wizard.state.data.lessonTopic = text;
+    await ctx.reply('Dars maqsadi (qisqa):', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
     const text = await ensureText(ctx);
     if (!text) return;
-    ctx.wizard.state.data.exitTest = Number(text || 0);
-    const growth = ctx.wizard.state.data.exitTest - ctx.wizard.state.data.entryTest;
-    await saveDocument('subjectReports', {
-      ...ctx.wizard.state.data,
-      growth,
-      role: 'subject_teacher',
-      chatId: ctx.chat?.id ?? null,
-      fromId: ctx.from?.id ?? null,
-      username: ctx.from?.username ?? null,
-    });
-    await ctx.reply(`📊 Hisobot qabul qilindi\n🚀 O'sish: ${growth} %`, teacherMenuKeyboard);
-    return ctx.scene.leave();
-  }
-);
+    ctx.wizard.state.data.lessonGoal = text;
+    await ctx.reply("Qo'llangan metodikani kiriting:", backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.method = text;
+    await ctx.reply('Bugun nechta o\'quvchi qatnashdi?', backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.attendance = Number(text || 0);
+    await ctx.reply('O\'quvchilar faolligi (1-5):', backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.activityScore = Number(text || 0);
+    await ctx.reply('O\'zlashtirish darajasi (1-5):', backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.performanceScore = Number(text || 0);
+    await ctx.reply('Uyga vazifa berildimi? (ha/yo\'q)', backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    const hasHomework = parseYes(text);
+    ctx.wizard.state.data.hasHomework = hasHomework;
+    if (hasHomework) {
+      await ctx.reply('Uyga vazifa (qisqa):', backKeyboard);
+      return ctx.wizard.next();
+    }
+    await ctx.reply("Muammo bormi? (ha/yo'q)", backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.homework = text;
+    await ctx.reply("Muammo bormi? (ha/yo'q)", backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    const hasIssue = parseYes(text);
+    ctx.wizard.state.data.hasIssue = hasIssue;
+    if (hasIssue) {
+      await ctx.reply('Muammo turi va qisqa tavsifini yozing:', backKeyboard);
+      return ctx.wizard.next();
+    }
 
-const methodScene = new Scenes.WizardScene(
-  'method-report',
-  async (ctx) => {
-    ctx.wizard.state.data = {};
-    await ctx.reply('Qo'llangan metod nomini kiriting:', backKeyboard);
-    return ctx.wizard.next();
-  },
-  async (ctx) => {
-    const text = await ensureText(ctx);
-    if (!text) return;
-    ctx.wizard.state.data.methodName = text;
-    await ctx.reply('Qisqa izoh yozing:', backKeyboard);
-    return ctx.wizard.next();
-  },
-  async (ctx) => {
-    const text = await ensureText(ctx);
-    if (!text) return;
-    ctx.wizard.state.data.note = text;
-    await saveDocument('methods', {
+    await saveDocument('dailyReports', {
       ...ctx.wizard.state.data,
-      role: 'subject_teacher',
       chatId: ctx.chat?.id ?? null,
       fromId: ctx.from?.id ?? null,
       username: ctx.from?.username ?? null,
     });
-    await ctx.reply('✅ Metod bazaga saqlandi', teacherMenuKeyboard);
+
+    const lateNote = ctx.wizard.state.data.isLate
+      ? '\nEslatma: Hisobot 21:00 dan keyin yuborildi.'
+      : '';
+    await ctx.reply(`Hisobot qabul qilindi.${lateNote}`, teacherMenuKeyboard);
+    return ctx.scene.leave();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.issueDetail = text;
+    await ctx.reply('Ko\'rilgan chora va reja:', backKeyboard);
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const text = await ensureText(ctx);
+    if (!text) return;
+    ctx.wizard.state.data.actionPlan = text;
+
+    await saveDocument('dailyReports', {
+      ...ctx.wizard.state.data,
+      chatId: ctx.chat?.id ?? null,
+      fromId: ctx.from?.id ?? null,
+      username: ctx.from?.username ?? null,
+    });
+
+    const lateNote = ctx.wizard.state.data.isLate
+      ? '\nEslatma: Hisobot 21:00 dan keyin yuborildi.'
+      : '';
+    await ctx.reply(`Hisobot qabul qilindi.${lateNote}`, teacherMenuKeyboard);
     return ctx.scene.leave();
   }
 );
@@ -340,7 +494,7 @@ const addAdminScene = new Scenes.WizardScene(
 
     const newAdminId = text.trim();
     if (!/^\d+$/.test(newAdminId)) {
-      await ctx.reply('Xato! ID faqat raqamlardan iborat bo'lishi kerak. Qaytadan kiriting:', backKeyboard);
+      await ctx.reply('Xato! ID faqat raqamlardan iborat bo\'lishi kerak. Qaytadan kiriting:', backKeyboard);
       return;
     }
 
@@ -360,17 +514,15 @@ const addAdminScene = new Scenes.WizardScene(
       username: ctx.from.username || 'unknown',
     });
 
-    await ctx.reply(`✅ ${adminName} muvaffaqiyatli admin qilib tayinlandi!`, adminMenuKeyboard);
+    await ctx.reply(` ${adminName} muvaffaqiyatli admin qilib tayinlandi!`, adminMenuKeyboard);
     return ctx.scene.leave();
   }
 );
 
 const stage = new Scenes.Stage([
-  classReportScene,
-  starScene,
   problemScene,
-  subjectReportScene,
-  methodScene,
+  classDailyReportScene,
+  subjectDailyReportScene,
   addAdminScene,
 ]);
 
@@ -380,7 +532,7 @@ bot.use(stage.middleware());
 const showRoleMenu = async (ctx) => {
   ctx.session.screen = 'role';
   await ctx.reply(
-    'Assalomu alaykum!\nTa'lim nazorat botiga xush kelibsiz 👋\nIltimos, rolingizni tanlang:',
+    'Assalomu alaykum!\nRolingizni tanlang:',
     roleKeyboard
   );
 };
@@ -388,7 +540,7 @@ const showRoleMenu = async (ctx) => {
 const showClassMenu = async (ctx) => {
   ctx.session.screen = 'class_menu';
   await ctx.reply(
-    'Sinf rahbari bo'limi tanlandi.\nQuyidagilardan birini tanlang:',
+    'Sinf rahbari bo\'limi. Kerakli menyuni tanlang:',
     classMenuKeyboard
   );
 };
@@ -396,7 +548,7 @@ const showClassMenu = async (ctx) => {
 const showTeacherMenu = async (ctx) => {
   ctx.session.screen = 'teacher_menu';
   await ctx.reply(
-    'Fan o'qituvchi bo'limi tanlandi.\nQuyidagilardan birini tanlang:',
+    'Fan o\'qituvchi bo\'limi. Kerakli menyuni tanlang:',
     teacherMenuKeyboard
   );
 };
@@ -404,7 +556,7 @@ const showTeacherMenu = async (ctx) => {
 const showAdminMenu = async (ctx) => {
   ctx.session.screen = 'admin_menu';
   await ctx.reply(
-    'Rahbariyat bo'limi tanlandi.\nQuyidagilardan birini tanlang:',
+    'Rahbariyat bo\'limi. Kerakli menyuni tanlang:',
     adminMenuKeyboard
   );
 };
@@ -421,7 +573,7 @@ bot.command('menu', async (ctx) => {
 bot.command('stop', async (ctx) => {
   ctx.session = {};
   await ctx.scene.leave();
-  await ctx.reply('Bot to'xtatildi. Qayta boshlash uchun /start ni bosing.', Markup.removeKeyboard());
+  await ctx.reply('Bot to\'xtatildi. Qayta boshlash uchun /start ni bosing.', Markup.removeKeyboard());
 });
 
 bot.command('cancel', async (ctx) => {
@@ -435,37 +587,37 @@ bot.command('admin', async (ctx) => {
     ctx.session.role = 'admin';
     await showAdminMenu(ctx);
   } else {
-    await ctx.reply('Sizda admin huquqi yo'q. ❌');
+    await ctx.reply('Sizda admin huquqi yo\'q. ');
   }
 });
 
 bot.command('help', async (ctx) => {
   await ctx.reply(
-    `🤖 Bot buyruqlari:\n\n/start - Botni ishga tushirish\n/menu - Bosh menyu\n/stop - Botni to'xtatish\n/cancel - Bekor qilish\n/admin - Admin paneli`
+    ` Bot buyruqlari:\n\n/start - Botni ishga tushirish\n/menu - Bosh menyu\n/stop - Botni to\'xtatish\n/cancel - Bekor qilish\n/admin - Admin paneli`
   );
 });
 
-bot.hears('🧑‍🏫 Sinf rahbari', async (ctx) => {
+bot.hears("\u{1F9D1}\u{200D}\u{1F3EB} Sinf rahbari", async (ctx) => {
   ctx.session.role = 'class_teacher';
   await showClassMenu(ctx);
 });
 
-bot.hears('👨‍🏫 Fan o'qituvchi', async (ctx) => {
+bot.hears("\u{1F468}\u{200D}\u{1F3EB} Fan o'qituvchi", async (ctx) => {
   ctx.session.role = 'subject_teacher';
   await showTeacherMenu(ctx);
 });
 
-bot.hears('👩‍💼 Rahbariyat', async (ctx) => {
+bot.hears("\u{1F9D1}\u{200D}\u{1F4BC} Rahbariyat", async (ctx) => {
   const hasAccess = await isAdmin(ctx.chat.id, ctx);
   if (!hasAccess) {
-    await ctx.reply('Sizda ushbu bo'limga kirish huquqi yo'q. ❌');
+    await ctx.reply("Sizda ushbu bo'limga kirish huquqi yo'q.");
     return;
   }
   ctx.session.role = 'admin';
   await showAdminMenu(ctx);
 });
 
-bot.hears('🔙 Orqaga', async (ctx) => {
+bot.hears("\u{2B05}\u{FE0F} Orqaga", async (ctx) => {
   const screen = ctx.session?.screen;
   if (screen === 'settings_menu') {
     await showAdminMenu(ctx);
@@ -481,128 +633,103 @@ bot.hears('🔙 Orqaga', async (ctx) => {
   }
 });
 
-bot.hears('📚 Sinf hisobot topshirish', async (ctx) => {
-  await ctx.scene.enter('class-report');
+bot.hears("\u{1F4DD} Kunlik hisobot", async (ctx) => {
+  await ctx.scene.enter('class-daily-report');
 });
 
-bot.hears('⭐ Haftaning yulduzi', async (ctx) => {
-  await ctx.scene.enter('star-student');
-});
-
-bot.hears('⚠️ Muammoli o'quvchilar', async (ctx) => {
+bot.hears("\u{26A0}\u{FE0F} Muammoli o'quvchi", async (ctx) => {
   await ctx.scene.enter('problem-student');
 });
 
-bot.hears('📊 Sinf natijasi', async (ctx) => {
-  await ctx.reply('⏳ Ma'lumotlar yuklanmoqda, biroz kuting...', classMenuKeyboard);
-  const reports = await getCollectionDocs('classReports');
-  if (reports.length === 0) {
-    await ctx.reply('Hali sinf hisobotlari yo'q.', classMenuKeyboard);
+bot.hears("\u{1F4DD} Kunlik fan hisobot", async (ctx) => {
+  await ctx.scene.enter('subject-daily-report');
+});
+
+bot.hears("\u{1F4CB} Kunlik hisobotlar", async (ctx) => {
+  await ctx.reply("Ma'lumotlar yuklanmoqda, biroz kuting...", adminMenuKeyboard);
+  const reports = await getCollectionDocs('dailyReports');
+  const today = getLocalDateKey();
+  const todayReports = reports.filter((report) => report.dateKey === today);
+  const lateReports = todayReports.filter((report) => report.isLate);
+
+  if (todayReports.length === 0) {
+    await ctx.reply(`Bugun (${today}) kunlik hisobotlar yo'q.`, adminMenuKeyboard);
     return;
   }
 
-  const avgActivity =
-    reports.reduce((sum, report) => sum + (Number(report.activity) || 0), 0) /
-    reports.length;
-  const avgDiscipline =
-    reports.reduce((sum, report) => sum + (Number(report.discipline) || 0), 0) /
-    reports.length;
+  const formatReport = (report, index) => {
+    const who = report.role === 'subject_teacher' ? "Fan o'qituvchi" : 'Sinf rahbari';
+    const name = report.username ? `@${report.username}` : "noma'lum";
+    const className = report.className ? `Sinf: ${report.className}` : '';
+    const subjectName = report.subjectName ? `Fan: ${report.subjectName}` : '';
+    const late = report.isLate ? 'Kech topshirilgan' : 'Vaqtida';
+    const goal = report.lessonGoal ? `Maqsad: ${report.lessonGoal}` : '';
+    const topic = report.lessonTopic ? `Mavzu: ${report.lessonTopic}` : '';
+    const method = report.method ? `Metodika: ${report.method}` : '';
+    const attendance = report.attendance !== undefined ? `Qatnashganlar: ${report.attendance}` : '';
+    const activity = report.activityScore !== undefined ? `Faollik: ${report.activityScore}/5` : '';
+    const performance =
+      report.performanceScore !== undefined ? `O'zlashtirish: ${report.performanceScore}/5` : '';
+    const homework = report.hasHomework
+      ? `Uyga vazifa: ${report.homework || 'ha'}`
+      : "Uyga vazifa: yo'q";
+    const issue = report.hasIssue ? `Muammo: ${report.issueDetail || 'ha'}` : "Muammo: yo'q";
+    const action = report.actionPlan ? `Chora/reja: ${report.actionPlan}` : '';
+    const time = report.submittedAt ? `Vaqt: ${report.submittedAt}` : '';
 
+    return [
+      `${index + 1}) ${who} - ${name} (${late})`,
+      className,
+      subjectName,
+      topic,
+      goal,
+      method,
+      attendance,
+      activity,
+      performance,
+      homework,
+      issue,
+      action,
+      time,
+    ]
+      .filter(Boolean)
+      .join('\n');
+  };
+
+  const list = todayReports.slice(0, 5);
   await ctx.reply(
-    `📊 Sinf natijasi:\nFaollik: ${avgActivity.toFixed(1)} %\nIntizom: ${avgDiscipline.toFixed(
-      1
-    )} %`,
-    classMenuKeyboard
-  );
-});
-
-bot.hears('📘 Fan hisobot', async (ctx) => {
-  await ctx.scene.enter('subject-report');
-});
-
-bot.hears('🔥 Qo'llangan metod', async (ctx) => {
-  await ctx.scene.enter('method-report');
-});
-
-bot.hears('📊 Umumiy statistika', async (ctx) => {
-  await ctx.reply('⏳ Ma'lumotlar yuklanmoqda, biroz kuting...', adminMenuKeyboard);
-  const [subjectReports, classReports] = await Promise.all([
-    getCollectionDocs('subjectReports'),
-    getCollectionDocs('classReports'),
-  ]);
-
-  const avgGrowth =
-    subjectReports.length === 0
-      ? 0
-      : subjectReports.reduce((sum, report) => sum + (Number(report.growth) || 0), 0) /
-        subjectReports.length;
-
-  const topClass = classReports
-    .filter((report) => report.className)
-    .sort((a, b) => (Number(b.activity) || 0) - (Number(a.activity) || 0))[0];
-
-  await ctx.reply(
-    `📊 Umumiy statistika:\nO'rtacha o'sish: ${avgGrowth.toFixed(
-      1
-    )} %\nEng faol sinf: ${topClass?.className ?? 'Ma'lumot yo'q'}`,
+    `Bugungi kunlik hisobotlar: ${todayReports.length} ta (kech: ${lateReports.length}).`,
     adminMenuKeyboard
   );
+
+  for (let i = 0; i < list.length; i += 1) {
+    const report = list[i];
+    const text = formatReport(report, i);
+    const keyboard = Markup.inlineKeyboard([
+      Markup.button.callback("\u{1F5D1}\u{FE0F} O'chirish", `delete_daily:${report.id}`),
+    ]);
+    await ctx.reply(text, keyboard);
+  }
 });
 
-bot.hears('🏆 Reyting', async (ctx) => {
-  await ctx.reply('⏳ Ma'lumotlar yuklanmoqda, biroz kuting...', adminMenuKeyboard);
-  const [classReports, subjectReports] = await Promise.all([
-    getCollectionDocs('classReports'),
-    getCollectionDocs('subjectReports'),
-  ]);
-
-  const bestClassTeacher = classReports
-    .filter((report) => report.username)
-    .sort((a, b) => (Number(b.activity) || 0) - (Number(a.activity) || 0))[0];
-
-  const bestSubjectTeacher = subjectReports
-    .filter((report) => report.username)
-    .sort((a, b) => (Number(b.growth) || 0) - (Number(a.growth) || 0))[0];
-
-  await ctx.reply(
-    `🏆 Reyting:\nEng yaxshi sinf rahbari: @${bestClassTeacher?.username ?? 'Ma'lumot yo'q'}\nEng katta o'sish ko'rsatgan fan o'qituvchi: @${
-      bestSubjectTeacher?.username ?? 'Ma'lumot yo'q'
-    }`,
-    adminMenuKeyboard
-  );
-});
-
-bot.hears('📥 Hisobotlar', async (ctx) => {
-  await ctx.reply('⏳ Ma'lumotlar yuklanmoqda, biroz kuting...', adminMenuKeyboard);
-  const [classReports, subjectReports] = await Promise.all([
-    getCollectionDocs('classReports'),
-    getCollectionDocs('subjectReports'),
-  ]);
-
-  await ctx.reply(
-    `📥 Hisobotlar:\nSinf rahbari hisobotlari: ${classReports.length} ta\nFan o'qituvchi hisobotlari: ${subjectReports.length} ta`,
-    adminMenuKeyboard
-  );
-});
-
-bot.hears('⚙️ Sozlamalar', async (ctx) => {
+bot.hears("\u{2699}\u{FE0F} Sozlamalar", async (ctx) => {
   ctx.session.screen = 'settings_menu';
-  await ctx.reply('⚙️ Sozlamalar bo'limi:', settingsMenuKeyboard);
+  await ctx.reply("Sozlamalar bo'limi:", settingsMenuKeyboard);
 });
 
-bot.hears('➕ Admin qo'shish', async (ctx) => {
+bot.hears("\u{2795} Admin qo'shish", async (ctx) => {
   await ctx.scene.enter('add-admin');
 });
 
-bot.hears('👥 Adminlar ro'yxati', async (ctx) => {
-  await ctx.reply('⏳ Adminlar ro'yxati yuklanmoqda...');
+bot.hears("\u{1F465} Adminlar ro'yxati", async (ctx) => {
+  await ctx.reply("Adminlar ro'yxati yuklanmoqda...");
   const admins = await getCollectionDocs('admins');
   if (admins.length === 0) {
-    await ctx.reply('Hali qo'shimcha adminlar yo'q.', settingsMenuKeyboard);
+    await ctx.reply("Hali qo'shimcha adminlar yo'q.", settingsMenuKeyboard);
     return;
   }
 
-  let list = '👥 Adminlar ro'yxati:\n\n';
+  let list = "Adminlar ro'yxati:\n\n";
   admins.forEach((admin, index) => {
     list += `${index + 1}. ${admin.name} (ID: ${admin.chatId})\n`;
   });
@@ -610,16 +737,38 @@ bot.hears('👥 Adminlar ro'yxati', async (ctx) => {
   await ctx.reply(list, settingsMenuKeyboard);
 });
 
+bot.action(/^delete_daily:(.+)$/, async (ctx) => {
+  const hasAccess = await isAdmin(ctx.chat?.id, ctx);
+  if (!hasAccess) {
+    await ctx.answerCbQuery('Ruxsat yo\'q.', { show_alert: true });
+    return;
+  }
+
+  const reportId = ctx.match?.[1];
+  if (!reportId) {
+    await ctx.answerCbQuery('Xato ID.', { show_alert: true });
+    return;
+  }
+
+  await deleteDoc(doc(db, 'dailyReports', reportId));
+  await ctx.answerCbQuery('O\'chirildi');
+  try {
+    await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
+  } catch (error) {
+    // Message might be too old or already edited.
+  }
+});
+
 bot.catch((err, ctx) => {
   console.error(`Ooops, encountered an error for ${ctx.updateType}`, err);
-  ctx.reply('Xatolik yuz berdi. Iltimos, /start buyrug'ini bosing.');
+  ctx.reply('Xatolik yuz berdi. Iltimos, /start buyrug\'ini bosing.');
 });
 
 bot.telegram.setMyCommands([
   { command: 'start', description: 'Botni ishga tushirish' },
   { command: 'menu', description: 'Bosh menyu' },
   { command: 'admin', description: 'Admin paneli' },
-  { command: 'stop', description: 'Botni to'xtatish' },
+  { command: 'stop', description: 'Botni to\'xtatish' },
   { command: 'help', description: 'Yordam' },
 ]);
 
