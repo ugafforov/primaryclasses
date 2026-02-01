@@ -1,3 +1,6 @@
+// Ensure local time is Tashkent (Asia/Tashkent) for all runtime date operations.
+process.env.TZ = 'Asia/Tashkent';
+
 import dotenv from 'dotenv';
 dotenv.config({ override: true });
 import http from 'http';
@@ -40,18 +43,18 @@ const db = getFirestore(firebaseApp);
 const bot = new Telegraf(token);
 
 const roleKeyboard = Markup.keyboard([
-  ['🧑‍🏫 Sinf rahbari', '👨‍🏫 Fan o‘qituvchi'],
+  ['🧑‍🏫 Sinf rahbari', '👨‍🏫 Fan o'qituvchi'],
   ['👩‍💼 Rahbariyat'],
 ]).resize();
 
 const classMenuKeyboard = Markup.keyboard([
   ['📚 Sinf hisobot topshirish', '⭐ Haftaning yulduzi'],
-  ['⚠️ Muammoli o‘quvchilar', '📊 Sinf natijasi'],
+  ['⚠️ Muammoli o'quvchilar', '📊 Sinf natijasi'],
   ['🔙 Orqaga'],
 ]).resize();
 
 const teacherMenuKeyboard = Markup.keyboard([
-  ['📘 Fan hisobot', '🔥 Qo‘llangan metod'],
+  ['📘 Fan hisobot', '🔥 Qo'llangan metod'],
   ['🔙 Orqaga'],
 ]).resize();
 
@@ -62,7 +65,7 @@ const adminMenuKeyboard = Markup.keyboard([
 ]).resize();
 
 const settingsMenuKeyboard = Markup.keyboard([
-  ['➕ Admin qo‘shish', '👥 Adminlar ro‘yxati'],
+  ['➕ Admin qo'shish', '👥 Adminlar ro'yxati'],
   ['🔙 Orqaga'],
 ]).resize();
 
@@ -139,7 +142,7 @@ const classReportScene = new Scenes.WizardScene(
     const text = await ensureText(ctx);
     if (!text) return;
     ctx.wizard.state.data.className = text;
-    await ctx.reply('O‘quvchilar sonini kiriting:', backKeyboard);
+    await ctx.reply('O'quvchilar sonini kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
@@ -183,7 +186,7 @@ const starScene = new Scenes.WizardScene(
   'star-student',
   async (ctx) => {
     ctx.wizard.state.data = {};
-    await ctx.reply('Haftaning yulduzi o‘quvchi ismini kiriting:', backKeyboard);
+    await ctx.reply('Haftaning yulduzi o'quvchi ismini kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
@@ -213,7 +216,7 @@ const problemScene = new Scenes.WizardScene(
   'problem-student',
   async (ctx) => {
     ctx.wizard.state.data = {};
-    await ctx.reply('Muammoli o‘quvchi ismini kiriting:', backKeyboard);
+    await ctx.reply('Muammoli o'quvchi ismini kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
@@ -227,7 +230,7 @@ const problemScene = new Scenes.WizardScene(
     const text = await ensureText(ctx);
     if (!text) return;
     ctx.wizard.state.data.issueType = text;
-    await ctx.reply('Ko‘rilgan chorani yozing:', backKeyboard);
+    await ctx.reply('Ko'rilgan chorani yozing:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
@@ -241,7 +244,7 @@ const problemScene = new Scenes.WizardScene(
       fromId: ctx.from?.id ?? null,
       username: ctx.from?.username ?? null,
     });
-    await ctx.reply('📌 Ma’lumot rahbariyatga yuborildi', classMenuKeyboard);
+    await ctx.reply('📌 Ma'lumot rahbariyatga yuborildi', classMenuKeyboard);
     return ctx.scene.leave();
   }
 );
@@ -287,7 +290,7 @@ const subjectReportScene = new Scenes.WizardScene(
       fromId: ctx.from?.id ?? null,
       username: ctx.from?.username ?? null,
     });
-    await ctx.reply(`📊 Hisobot qabul qilindi\n🚀 O‘sish: ${growth} %`, teacherMenuKeyboard);
+    await ctx.reply(`📊 Hisobot qabul qilindi\n🚀 O'sish: ${growth} %`, teacherMenuKeyboard);
     return ctx.scene.leave();
   }
 );
@@ -296,7 +299,7 @@ const methodScene = new Scenes.WizardScene(
   'method-report',
   async (ctx) => {
     ctx.wizard.state.data = {};
-    await ctx.reply('Qo‘llangan metod nomini kiriting:', backKeyboard);
+    await ctx.reply('Qo'llangan metod nomini kiriting:', backKeyboard);
     return ctx.wizard.next();
   },
   async (ctx) => {
@@ -337,7 +340,7 @@ const addAdminScene = new Scenes.WizardScene(
 
     const newAdminId = text.trim();
     if (!/^\d+$/.test(newAdminId)) {
-      await ctx.reply('Xato! ID faqat raqamlardan iborat bo‘lishi kerak. Qaytadan kiriting:', backKeyboard);
+      await ctx.reply('Xato! ID faqat raqamlardan iborat bo'lishi kerak. Qaytadan kiriting:', backKeyboard);
       return;
     }
 
@@ -377,7 +380,7 @@ bot.use(stage.middleware());
 const showRoleMenu = async (ctx) => {
   ctx.session.screen = 'role';
   await ctx.reply(
-    'Assalomu alaykum!\nTa’lim nazorat botiga xush kelibsiz 👋\nIltimos, rolingizni tanlang:',
+    'Assalomu alaykum!\nTa'lim nazorat botiga xush kelibsiz 👋\nIltimos, rolingizni tanlang:',
     roleKeyboard
   );
 };
@@ -385,7 +388,7 @@ const showRoleMenu = async (ctx) => {
 const showClassMenu = async (ctx) => {
   ctx.session.screen = 'class_menu';
   await ctx.reply(
-    'Sinf rahbari bo‘limi tanlandi.\nQuyidagilardan birini tanlang:',
+    'Sinf rahbari bo'limi tanlandi.\nQuyidagilardan birini tanlang:',
     classMenuKeyboard
   );
 };
@@ -393,7 +396,7 @@ const showClassMenu = async (ctx) => {
 const showTeacherMenu = async (ctx) => {
   ctx.session.screen = 'teacher_menu';
   await ctx.reply(
-    'Fan o‘qituvchi bo‘limi tanlandi.\nQuyidagilardan birini tanlang:',
+    'Fan o'qituvchi bo'limi tanlandi.\nQuyidagilardan birini tanlang:',
     teacherMenuKeyboard
   );
 };
@@ -401,7 +404,7 @@ const showTeacherMenu = async (ctx) => {
 const showAdminMenu = async (ctx) => {
   ctx.session.screen = 'admin_menu';
   await ctx.reply(
-    'Rahbariyat bo‘limi tanlandi.\nQuyidagilardan birini tanlang:',
+    'Rahbariyat bo'limi tanlandi.\nQuyidagilardan birini tanlang:',
     adminMenuKeyboard
   );
 };
@@ -418,7 +421,7 @@ bot.command('menu', async (ctx) => {
 bot.command('stop', async (ctx) => {
   ctx.session = {};
   await ctx.scene.leave();
-  await ctx.reply('Bot to‘xtatildi. Qayta boshlash uchun /start ni bosing.', Markup.removeKeyboard());
+  await ctx.reply('Bot to'xtatildi. Qayta boshlash uchun /start ni bosing.', Markup.removeKeyboard());
 });
 
 bot.command('cancel', async (ctx) => {
@@ -432,13 +435,13 @@ bot.command('admin', async (ctx) => {
     ctx.session.role = 'admin';
     await showAdminMenu(ctx);
   } else {
-    await ctx.reply('Sizda admin huquqi yo‘q. ❌');
+    await ctx.reply('Sizda admin huquqi yo'q. ❌');
   }
 });
 
 bot.command('help', async (ctx) => {
   await ctx.reply(
-    `🤖 Bot buyruqlari:\n\n/start - Botni ishga tushirish\n/menu - Bosh menyu\n/stop - Botni to‘xtatish\n/cancel - Bekor qilish\n/admin - Admin paneli`
+    `🤖 Bot buyruqlari:\n\n/start - Botni ishga tushirish\n/menu - Bosh menyu\n/stop - Botni to'xtatish\n/cancel - Bekor qilish\n/admin - Admin paneli`
   );
 });
 
@@ -447,7 +450,7 @@ bot.hears('🧑‍🏫 Sinf rahbari', async (ctx) => {
   await showClassMenu(ctx);
 });
 
-bot.hears('👨‍🏫 Fan o‘qituvchi', async (ctx) => {
+bot.hears('👨‍🏫 Fan o'qituvchi', async (ctx) => {
   ctx.session.role = 'subject_teacher';
   await showTeacherMenu(ctx);
 });
@@ -455,7 +458,7 @@ bot.hears('👨‍🏫 Fan o‘qituvchi', async (ctx) => {
 bot.hears('👩‍💼 Rahbariyat', async (ctx) => {
   const hasAccess = await isAdmin(ctx.chat.id, ctx);
   if (!hasAccess) {
-    await ctx.reply('Sizda ushbu bo‘limga kirish huquqi yo‘q. ❌');
+    await ctx.reply('Sizda ushbu bo'limga kirish huquqi yo'q. ❌');
     return;
   }
   ctx.session.role = 'admin';
@@ -486,15 +489,15 @@ bot.hears('⭐ Haftaning yulduzi', async (ctx) => {
   await ctx.scene.enter('star-student');
 });
 
-bot.hears('⚠️ Muammoli o‘quvchilar', async (ctx) => {
+bot.hears('⚠️ Muammoli o'quvchilar', async (ctx) => {
   await ctx.scene.enter('problem-student');
 });
 
 bot.hears('📊 Sinf natijasi', async (ctx) => {
-  await ctx.reply('⏳ Ma’lumotlar yuklanmoqda, biroz kuting...', classMenuKeyboard);
+  await ctx.reply('⏳ Ma'lumotlar yuklanmoqda, biroz kuting...', classMenuKeyboard);
   const reports = await getCollectionDocs('classReports');
   if (reports.length === 0) {
-    await ctx.reply('Hali sinf hisobotlari yo‘q.', classMenuKeyboard);
+    await ctx.reply('Hali sinf hisobotlari yo'q.', classMenuKeyboard);
     return;
   }
 
@@ -517,12 +520,12 @@ bot.hears('📘 Fan hisobot', async (ctx) => {
   await ctx.scene.enter('subject-report');
 });
 
-bot.hears('🔥 Qo‘llangan metod', async (ctx) => {
+bot.hears('🔥 Qo'llangan metod', async (ctx) => {
   await ctx.scene.enter('method-report');
 });
 
 bot.hears('📊 Umumiy statistika', async (ctx) => {
-  await ctx.reply('⏳ Ma’lumotlar yuklanmoqda, biroz kuting...', adminMenuKeyboard);
+  await ctx.reply('⏳ Ma'lumotlar yuklanmoqda, biroz kuting...', adminMenuKeyboard);
   const [subjectReports, classReports] = await Promise.all([
     getCollectionDocs('subjectReports'),
     getCollectionDocs('classReports'),
@@ -539,15 +542,15 @@ bot.hears('📊 Umumiy statistika', async (ctx) => {
     .sort((a, b) => (Number(b.activity) || 0) - (Number(a.activity) || 0))[0];
 
   await ctx.reply(
-    `📊 Umumiy statistika:\nO‘rtacha o‘sish: ${avgGrowth.toFixed(
+    `📊 Umumiy statistika:\nO'rtacha o'sish: ${avgGrowth.toFixed(
       1
-    )} %\nEng faol sinf: ${topClass?.className ?? 'Ma’lumot yo‘q'}`,
+    )} %\nEng faol sinf: ${topClass?.className ?? 'Ma'lumot yo'q'}`,
     adminMenuKeyboard
   );
 });
 
 bot.hears('🏆 Reyting', async (ctx) => {
-  await ctx.reply('⏳ Ma’lumotlar yuklanmoqda, biroz kuting...', adminMenuKeyboard);
+  await ctx.reply('⏳ Ma'lumotlar yuklanmoqda, biroz kuting...', adminMenuKeyboard);
   const [classReports, subjectReports] = await Promise.all([
     getCollectionDocs('classReports'),
     getCollectionDocs('subjectReports'),
@@ -562,44 +565,44 @@ bot.hears('🏆 Reyting', async (ctx) => {
     .sort((a, b) => (Number(b.growth) || 0) - (Number(a.growth) || 0))[0];
 
   await ctx.reply(
-    `🏆 Reyting:\nEng yaxshi sinf rahbari: @${bestClassTeacher?.username ?? 'Ma’lumot yo‘q'}\nEng katta o‘sish ko‘rsatgan fan o‘qituvchi: @${
-      bestSubjectTeacher?.username ?? 'Ma’lumot yo‘q'
+    `🏆 Reyting:\nEng yaxshi sinf rahbari: @${bestClassTeacher?.username ?? 'Ma'lumot yo'q'}\nEng katta o'sish ko'rsatgan fan o'qituvchi: @${
+      bestSubjectTeacher?.username ?? 'Ma'lumot yo'q'
     }`,
     adminMenuKeyboard
   );
 });
 
 bot.hears('📥 Hisobotlar', async (ctx) => {
-  await ctx.reply('⏳ Ma’lumotlar yuklanmoqda, biroz kuting...', adminMenuKeyboard);
+  await ctx.reply('⏳ Ma'lumotlar yuklanmoqda, biroz kuting...', adminMenuKeyboard);
   const [classReports, subjectReports] = await Promise.all([
     getCollectionDocs('classReports'),
     getCollectionDocs('subjectReports'),
   ]);
 
   await ctx.reply(
-    `📥 Hisobotlar:\nSinf rahbari hisobotlari: ${classReports.length} ta\nFan o‘qituvchi hisobotlari: ${subjectReports.length} ta`,
+    `📥 Hisobotlar:\nSinf rahbari hisobotlari: ${classReports.length} ta\nFan o'qituvchi hisobotlari: ${subjectReports.length} ta`,
     adminMenuKeyboard
   );
 });
 
 bot.hears('⚙️ Sozlamalar', async (ctx) => {
   ctx.session.screen = 'settings_menu';
-  await ctx.reply('⚙️ Sozlamalar bo‘limi:', settingsMenuKeyboard);
+  await ctx.reply('⚙️ Sozlamalar bo'limi:', settingsMenuKeyboard);
 });
 
-bot.hears('➕ Admin qo‘shish', async (ctx) => {
+bot.hears('➕ Admin qo'shish', async (ctx) => {
   await ctx.scene.enter('add-admin');
 });
 
-bot.hears('👥 Adminlar ro‘yxati', async (ctx) => {
-  await ctx.reply('⏳ Adminlar ro‘yxati yuklanmoqda...');
+bot.hears('👥 Adminlar ro'yxati', async (ctx) => {
+  await ctx.reply('⏳ Adminlar ro'yxati yuklanmoqda...');
   const admins = await getCollectionDocs('admins');
   if (admins.length === 0) {
-    await ctx.reply('Hali qo‘shimcha adminlar yo‘q.', settingsMenuKeyboard);
+    await ctx.reply('Hali qo'shimcha adminlar yo'q.', settingsMenuKeyboard);
     return;
   }
 
-  let list = '👥 Adminlar ro‘yxati:\n\n';
+  let list = '👥 Adminlar ro'yxati:\n\n';
   admins.forEach((admin, index) => {
     list += `${index + 1}. ${admin.name} (ID: ${admin.chatId})\n`;
   });
@@ -609,14 +612,14 @@ bot.hears('👥 Adminlar ro‘yxati', async (ctx) => {
 
 bot.catch((err, ctx) => {
   console.error(`Ooops, encountered an error for ${ctx.updateType}`, err);
-  ctx.reply('Xatolik yuz berdi. Iltimos, /start buyrug‘ini bosing.');
+  ctx.reply('Xatolik yuz berdi. Iltimos, /start buyrug'ini bosing.');
 });
 
 bot.telegram.setMyCommands([
   { command: 'start', description: 'Botni ishga tushirish' },
   { command: 'menu', description: 'Bosh menyu' },
   { command: 'admin', description: 'Admin paneli' },
-  { command: 'stop', description: 'Botni to‘xtatish' },
+  { command: 'stop', description: 'Botni to'xtatish' },
   { command: 'help', description: 'Yordam' },
 ]);
 
